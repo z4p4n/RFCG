@@ -1,0 +1,9 @@
+binaries
+dbg
+*.o
+*.O
+*.exe
+*.EXE
+*~
+*.cbp
+*.CBP
