@@ -1,0 +1,3 @@
+[submodule "C-resources"]
+	path = C-resources
+	url = https://github.com/z4p4n/C-resources
