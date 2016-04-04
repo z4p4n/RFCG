@@ -4,9 +4,9 @@
 #include <sys/mman.h>
 #include <errno.h>
 
-#include "../../ZpnError.h"
-#include "../../ZpnRegex.h"
-#include "../../ZpnFiles.h"
+#include "../C-resources/ZpnError.h"
+#include "../C-resources/ZpnRegex.h"
+#include "../C-resources/ZpnFiles.h"
 
 #include "graph.h"
 
