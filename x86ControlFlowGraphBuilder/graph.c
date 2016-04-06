@@ -3,12 +3,12 @@
 
 #include "graph.h"
 
-/* Init graph structure */
-void init_graph (p_graph graph) {
+/* clean graph structure */
+void clean_graph (p_graph graph) {
 
-	graph->start = NULL;
-	graph->end   = NULL;
-    graph->lookup_table = NULL;
+	graph->start            = NULL;
+	graph->end              = NULL;
+    graph->lookup_table     = NULL;
 	graph->len_lookup_table = 0;
 
 	return;
@@ -20,22 +20,23 @@ void free_graph (p_graph graph) {
 	p_node_list tmp_list, list;
 
 	list = graph->start;
-
 	if (list != NULL) {
 
 		while (list->next != NULL) {
+			zpn_free_str (list->node.instr);
 			tmp_list = list;
 			list = list->next;
 			free (tmp_list);
 		}
 
+		zpn_free_str (list->node.instr);
 		free (list);
 	}
 
 	free (graph->lookup_table);
 	graph->lookup_table = NULL;
-	graph->start = NULL;
-	graph->end = NULL;
+	graph->start        = NULL;
+	graph->end          = NULL;
 	return;
 }
 
@@ -95,17 +96,41 @@ p_node_list new_node_list (p_graph graph, int father, int child) {
 p_node search_node (p_graph graph, int id) {
 
 	if (id >= graph->len_lookup_table) {
-		fprintf (stderr, "%s:%d id >= len_lookup_table\n", __FILE__, __LINE__);
+		fprintf (stderr, "%s:%d id[%d] >= len_lookup_table[%d]\n", 
+		  __FILE__, __LINE__, id, graph->len_lookup_table);
 		exit (EXIT_FAILURE);
 	}
 
+	if (graph->lookup_table[id] == NULL)
+		return NULL;
+
 	return &(graph->lookup_table[id]->node);
+}
+
+/* Add string to node using memory to save last position of last string */
+int add_str_to_node (p_node node, char *str) {
+
+	static p_zpn_str *next = NULL;
+	static p_node old_node = NULL;
+
+	if (old_node != node || node == NULL) {
+
+		old_node = node;
+		if (node == NULL) return 0;
+
+		next = &(node->instr);
+	} 
+
+	next = zpn_add_str (next, str);
+	if (next == NULL) return 0;
+	
+	return 1;
 }
 
 /* Add node to list                      * 
  * ------------------------------------- *
  * If child < 0, don't add child to node */
-p_node add_node_to_list (p_graph graph, int father, int child) {
+p_node add_node_to_list (p_graph graph, int father, int child, char *str) {
 
 	p_node node = NULL;
 	p_node_list list = NULL;
@@ -115,13 +140,17 @@ p_node add_node_to_list (p_graph graph, int father, int child) {
 
 		list = new_node_list (graph, father, child);
 		if (list == NULL) return NULL;
+		list->node.instr = NULL;
 
-	} else {
+	} 
 
-		node = &(list->node);
-		if (child >= 0)
-			add_child_to_node (node, child);
-	}
+	node = &(list->node);
+	if (child >= 0)
+		add_child_to_node (node, child);
+
+	if (str != NULL)
+		if (!add_str_to_node (node, str))
+			return NULL;
 
 	return &(list->node);
 }
@@ -152,6 +181,7 @@ void write_directed_graph (FILE *fd, p_graph graph) {
 
 /* Transfer node1 to node2, node2 take children of node1 and node2 *
  * become child of node1                                           */
+/* TODO update structure due to instr in node
 void transfer_branch (p_graph graph, int id1, int id2) {
 
 	p_node node1, node2;
@@ -163,7 +193,7 @@ void transfer_branch (p_graph graph, int id1, int id2) {
 		return;
 	}
 
-	node2 = add_node_to_list (graph, id2, -1); 
+	node2 = add_node_to_list (graph, id2, -1, NULL); 
 	node2->left = node1->left;
 	node2->right = node1->right;
 	node1->left = node2->id;
@@ -171,3 +201,4 @@ void transfer_branch (p_graph graph, int id1, int id2) {
 
 	return;
 }
+*/

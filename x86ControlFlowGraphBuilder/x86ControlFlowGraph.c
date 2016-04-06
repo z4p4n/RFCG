@@ -5,6 +5,7 @@
 #include <errno.h>
 
 #include "../C-resources/ZpnError.h"
+#include "../C-resources/ZpnString.h"
 #include "../C-resources/ZpnRegex.h"
 #include "../C-resources/ZpnFiles.h"
 
@@ -65,7 +66,7 @@ int allocate_memory_for_gfc_building (char *data, p_graph graph) {
 	for (line_nb = 0 ; line[line_nb] ; line[line_nb] == '\n' ? line_nb++ : *line++);
 
 	/* Allocate memory for lookup_table in graph structure */
-	graph->lookup_table = (p_node_list *) malloc (sizeof (p_node_list) * line_nb);
+	graph->lookup_table = (p_node_list *) calloc (line_nb, sizeof (p_node_list));
 	graph->len_lookup_table = line_nb;
 	if (graph->lookup_table == NULL) 
 		return ZPN_ERROR;
@@ -161,10 +162,10 @@ int build_gfc_linearly (char *data, p_graph graph) {
 		if (ret == ZPN_REGEX_MATCH) {
 		
 			if (previous_label != -1)
-				add_node_to_list (graph, previous_label, i);
+				add_node_to_list (graph, previous_label, i, NULL);
 			previous_label = i;
 			search_next_label = 0;
-			add_node_to_list (graph, i, -1);
+			add_node_to_list (graph, i, -1, NULL);
 
 		} else if (ret == ZPN_ERROR) {
 			zpn_print_error ();
@@ -173,10 +174,18 @@ int build_gfc_linearly (char *data, p_graph graph) {
 
 		if (search_next_label) goto parse_next_line;
 
+		/* Add instruction to node */
+		if (NULL == add_node_to_list (graph, previous_label, -1, token)) {
+			fprintf (stderr, "Cannot add token to label %d\n", previous_label);
+			goto free_and_fail;
+		}
+
 		/* Match ret instruction */
 		ret = zpn_regex_match (token, "^[\t ]*ret.*$");
-		if (ret == ZPN_REGEX_MATCH) previous_label = i + 1;
-		else if (ret == ZPN_ERROR) {
+		if (ret == ZPN_REGEX_MATCH) {
+			previous_label = -1;
+			search_next_label = 1;
+		} else if (ret == ZPN_ERROR) {
 			zpn_print_error ();
 			goto free_and_fail;
 		} 
@@ -203,10 +212,11 @@ int build_gfc_linearly (char *data, p_graph graph) {
 					goto free_and_fail2;
 				}
 
-				add_node_to_list (graph, previous_label, label);
+				add_node_to_list (graph, previous_label, label, NULL);
 				if (strcmp (str_struct->str[1], "jmp")) {
-					add_node_to_list (graph, previous_label, i+1);
+					add_node_to_list (graph, previous_label, i+1, NULL);
 					previous_label = i + 1;
+					add_node_to_list (graph, previous_label, -1, NULL);
 				} else {
 					search_next_label = 1;
 					previous_label = -1;
@@ -249,7 +259,7 @@ int main (int argc, const char *argv[]) {
     }
     
 	/* Initialize misc. data */
-	init_graph (&graph);
+	clean_graph (&graph);
 
 	/* Map file into memory */
 	size = zpn_map_file (argv[1], &data);
@@ -276,7 +286,25 @@ int main (int argc, const char *argv[]) {
 		free_graph (&graph);
 	}
 	
+	/* Display instr */
+	/*
+	p_zpn_str tmp;	
+	p_node_list list = graph.start;
+	while (list != NULL) {
+
+		tmp = list->node.instr;
+		while (tmp != NULL) {
+
+			fprintf (stdout, "%d\t%s\n", list->node.id, tmp->str[0]);
+			tmp = tmp->next;
+		}
+
+		list = list->next;
+	}
+	*/
+
 	write_directed_graph (fd, &graph);
+
 	free_graph (&graph);
 
 	fclose (fd);
